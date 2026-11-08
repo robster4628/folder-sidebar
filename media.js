@@ -485,21 +485,27 @@ const Media = (() => {
     }
     return c;
   }
-  function renderSettings() {
-    const s = $('#mediaSettings');
-    s.replaceChildren();
-    const row = (dotCls, text, ...btns) => {
-      const r = el('div', 'srow');
-      r.append(el('i', 'dot ' + dotCls), el('span', '', text), ...btns);
-      s.append(r);
-    };
-    row(m.sitesAllowed ? 'ok' : '', m.sitesAllowed ? 'Music site controls on' : 'Music site controls off',
-      ...(m.sitesAllowed ? [] : [btn('Turn on', 'YouTube, YouTube Music, Tidal, Spotify web, SoundCloud', allowSites, false, 'linkbtn')]));
-    if (m.helper === 'ok') row('ok', `Chromecast helper running · ${m.castDevices} device${m.castDevices === 1 ? '' : 's'}`);
-    else row('off', 'Chromecast helper not running', btn('How?', 'Set up the helper', helperHelp, false, 'linkbtn'));
-    const connected = m.spotifyAuth && m.spotifyAuth.refresh;
-    if (connected) row(m.spotifyError ? 'off' : 'ok', m.spotifyError || 'Spotify connected', btn('Disconnect', '', disconnectSpotify, false, 'linkbtn'));
-    else row('', m.spotifyError || 'Spotify not connected', btn('Connect', '', connectSpotify, false, 'linkbtn'));
+  function openSettings() {
+    modal((box, done) => {
+      box.append(el('p', '', 'Music settings'));
+      const list = el('div', 'msettings');
+      const row = (dotCls, text, ...btns) => {
+        const r = el('div', 'srow');
+        r.append(el('i', 'dot ' + dotCls), el('span', '', text), ...btns);
+        list.append(r);
+      };
+      // Each action closes this dialog first, since it may open its own.
+      const then = (fn) => () => { done(null); fn(); };
+      row(m.sitesAllowed ? 'ok' : '', m.sitesAllowed ? 'Music site controls on' : 'Music site controls off',
+        ...(m.sitesAllowed ? [] : [btn('Turn on', 'YouTube, YouTube Music, Tidal, Spotify web, SoundCloud', then(allowSites), false, 'linkbtn')]));
+      if (m.helper === 'ok') row('ok', `Chromecast helper running · ${m.castDevices} device${m.castDevices === 1 ? '' : 's'}`);
+      else row('off', 'Chromecast helper not running', btn('How?', 'Set up the helper', then(helperHelp), false, 'linkbtn'));
+      const connected = m.spotifyAuth && m.spotifyAuth.refresh;
+      if (connected) row(m.spotifyError ? 'off' : 'ok', m.spotifyError || 'Spotify connected', btn('Disconnect', '', then(disconnectSpotify), false, 'linkbtn'));
+      else row('', m.spotifyError || 'Spotify not connected', btn('Connect', '', then(connectSpotify), false, 'linkbtn'));
+      box.append(list);
+      const b = el('div', 'btns'); const ok = el('button', 'primary', 'Done'); ok.onclick = () => done(true); b.append(ok); box.append(b);
+    });
   }
   function helperHelp() {
     modal((box, done) => {
@@ -529,9 +535,8 @@ const Media = (() => {
     const list = $('#mediaList');
     list.replaceChildren();
     const all = items();
-    if (!all.length) list.append(el('div', 'mempty', 'Nothing playing.'));
+    if (!all.length) list.append(el('div', 'mempty', 'Nothing playing. Sources are set up in ⋯ → Music Settings.'));
     for (const i of all) list.append(card(i));
-    renderSettings();
   }
 
   // ---------- polling ----------
@@ -573,7 +578,7 @@ const Media = (() => {
     refresh(true);
   }
 
-  return { init, state: m, refresh, toggleDrawer };
+  return { init, state: m, refresh, toggleDrawer, openSettings };
 })();
 
 Media.init();

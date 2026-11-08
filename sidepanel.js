@@ -709,6 +709,8 @@ function wire() {
     showMenu(r.left, r.top - 8, [
       { label: 'Import from Arc…', fn: () => { importMode = 'all'; $('#importFile').click(); } },
       { label: 'Restore Space Colors from Arc…', fn: () => { importMode = 'colors'; $('#importFile').click(); } },
+      { label: 'Music Settings…', fn: () => Media.openSettings() },
+      '-',
       { label: 'Collapse All Folders', fn: () => { state.expanded.clear(); saveExpanded(); render(); } },
       { label: 'Open Bookmark Manager', fn: () => chrome.tabs.create({ url: 'chrome://bookmarks/?id=' + state.rootId }) },
       { label: 'Keyboard Shortcut…', fn: () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }) },
