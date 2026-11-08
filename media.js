@@ -59,6 +59,7 @@ const Media = (() => {
     focusKey: null,    // last item the user touched (mini player prefers it)
     lastPlaying: {},   // key -> time it was last seen playing
     hiddenSig: null,   // mini player dismissed for this track
+    volHold: {},       // key -> {level, until}: volume the user just set, shown until the device catches up
     dragging: false,
     tick: 0,
   };
@@ -537,6 +538,16 @@ const Media = (() => {
   }
 
   // ---------- combined ----------
+  // Devices report the old volume for a moment after a change; keep showing the new one
+  // until they confirm it (or 5 seconds pass) so the slider doesn't jump back and forth.
+  function applyVolumeHold(i) {
+    const h = m.volHold[i.key];
+    if (!h) return;
+    if (!('deviceVolume' in i)) i.deviceVolume = i.volume; // what the device actually reported
+    const confirmed = i.ts > h.at && i.deviceVolume != null && Math.abs(i.deviceVolume - h.level) <= 1;
+    if (Date.now() > h.until || confirmed) { delete m.volHold[i.key]; return; }
+    i.volume = h.level;
+  }
   function items() {
     const list = [];
     if (m.spotify) list.push(m.spotify);
@@ -551,6 +562,7 @@ const Media = (() => {
       if (sp && t.source === 'open.spotify.com') continue;
       list.push(t);
     }
+    list.forEach(applyVolumeHold);
     return list.sort((a, b) => b.playing - a.playing);
   }
   const PAUSED_GRACE = 3 * 60 * 1000; // keep a paused track in the mini player for 3 minutes
@@ -622,7 +634,11 @@ const Media = (() => {
     r.onpointerdown = () => (m.dragging = true);
     // Tabs follow the slider live; Chromecast and Spotify update when you let go.
     if (item.kind === 'tab') r.oninput = () => tabAction(item, 'volume', { level: Number(r.value) }).catch(() => {});
-    r.onchange = () => { m.dragging = false; run(item, 'volume', { level: Number(r.value) }); };
+    r.onchange = () => {
+      m.dragging = false;
+      m.volHold[item.key] = { level: Number(r.value), at: Date.now() + 50, until: Date.now() + 5000 };
+      run(item, 'volume', { level: Number(r.value) });
+    };
     r.onblur = () => (m.dragging = false);
     return r;
   }
