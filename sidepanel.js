@@ -25,7 +25,7 @@ const state = {
   byId: new Map(),        // bookmark id -> node (with .path)
   parentOf: new Map(),    // bookmark id -> parent id
   expanded: new Set(),
-  colors: {},             // space folder id -> hex
+  colors: {},             // space title -> hex (synced)
   links: {},              // tabId -> bookmarkId (session)
   bmToTab: new Map(),     // bookmark id -> tab
   linkedTabIds: new Set(),
@@ -216,7 +216,7 @@ function scheduleLoad() {
 // ---------- render ----------
 function render() {
   const space = state.byId.get(state.activeSpaceId);
-  const color = (space && state.colors[space.id]) ||
+  const color = (space && state.colors[space.title]) ||
     FALLBACK_COLORS[Math.max(0, state.spaces.findIndex((s) => s.id === state.activeSpaceId)) % FALLBACK_COLORS.length];
   document.documentElement.style.setProperty('--space', color);
 
@@ -419,7 +419,14 @@ function shiftSpace(d) {
 }
 async function setColors(patch) {
   Object.assign(state.colors, patch);
-  await chrome.storage.local.set({ colors: state.colors });
+  for (const k of Object.keys(patch)) if (patch[k] == null) delete state.colors[k];
+  await chrome.storage.sync.set({ colors: state.colors });
+}
+async function renameSpace(id, oldTitle, newTitle) {
+  if (!newTitle || newTitle === oldTitle) return;
+  const c = state.colors[oldTitle];
+  if (c) await setColors({ [newTitle]: c, [oldTitle]: null });
+  await chrome.bookmarks.update(id, { title: newTitle });
 }
 
 function startRename(row) {
@@ -505,9 +512,9 @@ function menuFor(kind, id, row) {
     const s = state.byId.get(id);
     const { icon, name } = splitIcon(s.title);
     return [
-      { label: 'Rename Space…', fn: async () => { const v = await askText('Space name', name); if (v) chrome.bookmarks.update(id, { title: (icon ? icon + ' ' : '') + v }); } },
-      { label: 'Change Icon…', fn: async () => { const v = await askText('Emoji for this space', icon || ''); if (v != null) chrome.bookmarks.update(id, { title: v + ' ' + name }); } },
-      { label: 'Change Color…', fn: async () => { const prev = state.colors[id]; const v = await askColor('Space color', prev); if (v) await setColors({ [id]: v }); render(); } },
+      { label: 'Rename Space…', fn: async () => { const v = await askText('Space name', name); if (v) renameSpace(id, s.title, (icon ? icon + ' ' : '') + v); } },
+      { label: 'Change Icon…', fn: async () => { const v = await askText('Emoji for this space', icon || ''); if (v != null) renameSpace(id, s.title, (v ? v + ' ' : '') + name); } },
+      { label: 'Change Color…', fn: async () => { const prev = state.colors[s.title]; const v = await askColor('Space color', prev); if (v) await setColors({ [s.title]: v }); render(); } },
       { label: 'New Folder', fn: () => newFolder(id) },
       '-',
       { label: 'Delete Space…', danger: true, fn: () => deleteNode(id) },
@@ -553,7 +560,7 @@ async function runImport(file) {
     let firstSpace = null;
     for (const s of data.spaces) {
       const f = await chrome.bookmarks.create({ parentId: state.rootId, title: (s.icon ? s.icon + ' ' : '') + s.title });
-      if (s.color) colors[f.id] = s.color;
+      if (s.color) colors[f.title] = s.color;
       firstSpace = firstSpace || f.id;
       tick();
       await write(f.id, s.children);
@@ -565,6 +572,23 @@ async function runImport(file) {
     await load();
   }
   toast(`Imported ${done - failed.length} items.` + (failed.length ? ` ${failed.length} couldn't be saved (unsupported URLs): ${failed.slice(0, 5).join(', ')}` : ''), 8000);
+}
+
+let importMode = 'all';
+async function restoreColors(file) {
+  let data;
+  try { data = parseArcSidebar(JSON.parse(await file.text())); }
+  catch (e) { return toast('Could not read that file: ' + e.message, 6000); }
+  const patch = {};
+  let n = 0;
+  for (const s of data.spaces) {
+    if (!s.color) continue;
+    const title = (s.icon ? s.icon + ' ' : '') + s.title;
+    if (state.spaces.some((x) => x.title === title)) { patch[title] = s.color; n++; }
+  }
+  await setColors(patch);
+  render();
+  toast(n ? `Restored colors for ${n} space${n > 1 ? 's' : ''}.` : 'No matching space names found.');
 }
 
 // ---------- drag & drop ----------
@@ -683,7 +707,8 @@ function wire() {
     e.stopPropagation();
     const r = e.currentTarget.getBoundingClientRect();
     showMenu(r.left, r.top - 8, [
-      { label: 'Import from Arc…', fn: () => $('#importFile').click() },
+      { label: 'Import from Arc…', fn: () => { importMode = 'all'; $('#importFile').click(); } },
+      { label: 'Restore Space Colors from Arc…', fn: () => { importMode = 'colors'; $('#importFile').click(); } },
       { label: 'Collapse All Folders', fn: () => { state.expanded.clear(); saveExpanded(); render(); } },
       { label: 'Open Bookmark Manager', fn: () => chrome.tabs.create({ url: 'chrome://bookmarks/?id=' + state.rootId }) },
       { label: 'Keyboard Shortcut…', fn: () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }) },
@@ -694,7 +719,7 @@ function wire() {
   $('#importFile').addEventListener('change', async (e) => {
     const f = e.target.files[0];
     e.target.value = '';
-    if (f) await runImport(f);
+    if (f) await (importMode === 'colors' ? restoreColors(f) : runImport(f));
   });
 
   const filter = $('#filter');
@@ -771,7 +796,7 @@ function wire() {
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'session' && changes.links) scheduleLoad();
-    if (area === 'local' && changes.colors) { state.colors = changes.colors.newValue || {}; render(); }
+    if (area === 'sync' && changes.colors) { state.colors = changes.colors.newValue || {}; render(); }
   });
 }
 
@@ -779,9 +804,10 @@ function wire() {
 (async function init() {
   const win = await chrome.windows.getCurrent();
   state.windowId = win.id;
-  const saved = await chrome.storage.local.get(['expanded', 'colors', 'activeSpace']);
+  const saved = await chrome.storage.local.get(['expanded', 'activeSpace']);
+  const synced = await chrome.storage.sync.get('colors');
   state.expanded = new Set(saved.expanded || []);
-  state.colors = saved.colors || {};
+  state.colors = synced.colors || {};
   state.activeSpaceId = saved.activeSpace || null;
   await ensureRoot();
   wire();

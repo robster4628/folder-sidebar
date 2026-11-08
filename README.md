@@ -20,5 +20,16 @@ so it syncs with your Google account and survives if you remove the extension.
 - Double-click to rename. Right-click for everything else (new folder, delete, edit URL, space icon/color).
 - Two-finger swipe sideways switches spaces. Search box filters every saved link in every space.
 
+## Media drawer
+Click ♫ at the bottom (next to the space icons) to open the drawer. When something is playing, a mini
+player sits above the space icons; click it to open the drawer.
+
+- **Chrome tabs** playing sound appear automatically, with mute and a jump-to-tab link. Click **Turn on**
+  once to allow play/pause/skip on YouTube, YouTube Music, Tidal, Spotify web and SoundCloud.
+- **Chromecasts** (anyone's casts, any app) need the helper on this Mac:
+  `bash cast-helper/install.sh` — click Allow if macOS asks about local network devices.
+  Remove with `bash cast-helper/uninstall.sh`. Log: `~/Library/Logs/FolderSidebarCast.log`.
+- **Your Spotify**: click **Connect** and follow the steps (needs Premium and a free Spotify developer app).
+
 ## Updating
 Edit the files, then hit the reload arrow on the extension in `chrome://extensions`.

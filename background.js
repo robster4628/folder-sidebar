@@ -13,3 +13,18 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
     await chrome.storage.session.set({ links });
   }
 });
+
+// Remember tabs that have played sound, so paused tabs stay in the media drawer.
+chrome.tabs.onUpdated.addListener(async (tabId, info) => {
+  if (info.audible !== true) return;
+  const { mediaTabs = {} } = await chrome.storage.session.get('mediaTabs');
+  mediaTabs[tabId] = Date.now();
+  await chrome.storage.session.set({ mediaTabs });
+});
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  const { mediaTabs = {} } = await chrome.storage.session.get('mediaTabs');
+  if (mediaTabs[tabId]) {
+    delete mediaTabs[tabId];
+    await chrome.storage.session.set({ mediaTabs });
+  }
+});

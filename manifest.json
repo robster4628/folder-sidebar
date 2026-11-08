@@ -1,20 +1,55 @@
 {
   "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0kHPhRemtEc95h+GBxFUngNbUyerT8p4vXYY5MSA2aCoKwciBVQODxPtHrAqanDNAM0g3ZX+DPHqL9bLclxgdGyEvERlNzxYtbEoS4RD35x9CfnEl3Y1U7YzfBGDMsPVDO3VFCpGdx+Jpv+OfesSSXgMnrgLdxB9VRZUjvhjjkxRXk4rYkkcMsTfVYXQm+SuwWm8p+4pIviD3eBtjERwWcJ4ehbsatkA3Z5JSydr2ql83a+SEB0vHghUH03Nh38VzBUt89s3gyro1fEcjbDu6z6NmCf5W4kTyAAen1MW8mm63NwTee5JnSgWhJewbzMeTP1G25hlKC2s2ojxDWk7bQIDAQAB",
   "name": "Folder Sidebar",
-  "version": "1.1.0",
-  "description": "Arc-style spaces, pinned grid and nested folders in Chrome's side panel. Everything is stored as ordinary Chrome bookmarks.",
-  "permissions": ["sidePanel", "bookmarks", "tabs", "storage", "favicon"],
-  "background": { "service_worker": "background.js" },
-  "side_panel": { "default_path": "sidepanel.html" },
+  "version": "1.2.0",
+  "description": "Arc-style spaces, pinned grid, nested folders and a media drawer in Chrome's side panel. Saved links are ordinary Chrome bookmarks.",
+  "permissions": [
+    "sidePanel",
+    "bookmarks",
+    "tabs",
+    "storage",
+    "favicon",
+    "scripting",
+    "identity"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "action": {
     "default_title": "Toggle Folder Sidebar",
-    "default_icon": { "16": "icons/16.png", "32": "icons/32.png" }
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png"
+    }
   },
   "commands": {
     "_execute_action": {
-      "suggested_key": { "default": "Alt+S", "mac": "Alt+S" },
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Alt+S"
+      },
       "description": "Toggle the sidebar"
     }
   },
-  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" }
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "https://accounts.spotify.com/*",
+    "https://api.spotify.com/*"
+  ],
+  "optional_host_permissions": [
+    "*://*.youtube.com/*",
+    "*://listen.tidal.com/*",
+    "*://open.spotify.com/*",
+    "*://*.soundcloud.com/*"
+  ]
 }
