@@ -59,7 +59,8 @@ const Media = (() => {
     focusKey: null,    // last item the user touched (mini player prefers it)
     lastPlaying: {},   // key -> time it was last seen playing
     hiddenSig: null,   // mini player dismissed for this track
-    volHold: {},       // key -> {level, until}: volume the user just set, shown until the device catches up
+    volHold: {},
+    castNames: {},     // cast ID (no dashes) -> friendly name, from the helper       // key -> {level, until}: volume the user just set, shown until the device catches up
     dragging: false,
     tick: 0,
   };
@@ -237,6 +238,8 @@ const Media = (() => {
       const { devices = [] } = await r.json();
       m.helper = 'ok';
       m.castDevices = devices.length;
+      // Spotify sometimes names Chromecasts by their Cast ID; remember real names to translate.
+      for (const d of devices) if (d.id && d.name) m.castNames[d.id.replace(/-/g, '').toLowerCase()] = d.name;
       m.casts = devices.filter((d) => d.media && !d.idle).map((d) => ({
         key: 'cast:' + d.id, kind: 'cast', id: d.id,
         title: d.media.title || d.app || 'Casting',
@@ -331,7 +334,7 @@ const Media = (() => {
         key: 'spotify', kind: 'spotify',
         title: it.name,
         artist: it.artists ? it.artists.map((a) => a.name).join(', ') : (it.show ? it.show.name : ''),
-        source: 'Spotify', device: p.device ? p.device.name : '', deviceId: p.device && p.device.id,
+        source: 'Spotify', device: p.device ? deviceName(p.device.name) : '', deviceId: p.device && p.device.id,
         art: images.length ? images[Math.min(1, images.length - 1)].url : null,
         playing: !!p.is_playing,
         position: (p.progress_ms || 0) / 1000, duration: (it.duration_ms || 0) / 1000, ts: Date.now(),
@@ -509,12 +512,16 @@ const Media = (() => {
     else if (action === 'volume') await sp('/me/player/volume?volume_percent=' + Math.round(body.level), 'PUT');
     else if (action === 'transfer') await sp('/me/player', 'PUT', { device_ids: [body.deviceId], play: true });
   }
+  function deviceName(name) {
+    if (!/^[0-9a-f]{32}$/i.test(name || '')) return name;
+    return m.castNames[name.toLowerCase()] || 'Cast speaker …' + name.slice(-4);
+  }
   async function spotifyDevicesMenu(item, x, y) {
     try {
       const { devices = [] } = (await sp('/me/player/devices')) || {};
       if (!devices.length) return mtoast('No Spotify devices available right now.');
       showMenu(x, y, devices.map((d) => ({
-        label: (d.is_active ? '✓ ' : ' ') + d.name,
+        label: (d.is_active ? '✓ ' : ' ') + deviceName(d.name),
         fn: () => run(item, 'transfer', { deviceId: d.id }),
       })));
     } catch (e) { mtoast(e.message); }
@@ -801,9 +808,6 @@ const Media = (() => {
     const all = items();
     if (!all.length) list.append(el('div', 'mempty', 'Nothing playing. Sources are set up in ⋯ → Music Settings.'));
     for (const i of all) list.append(card(i));
-    if (!m.spotify && m.spotifyAuth && m.spotifyAuth.refresh) {
-      list.append(btn('Play a Spotify playlist…', 'Pick one of your playlists', (e) => playPlaylistMenu(e.clientX, e.clientY), false, 'linkbtn sp-play'));
-    }
   }
 
   // ---------- polling ----------
