@@ -218,3 +218,6 @@ body {
 .modal code { display: block; font-size: 11px; background: #8882; padding: 6px; border-radius: 6px; word-break: break-all; user-select: text; margin: 4px 0 8px; }
 .modal ol { margin: 0 0 8px; padding-left: 18px; font-size: 12px; }
 .modal ol li { margin-bottom: 3px; }
+.mcard .jump { cursor: pointer; }
+.mcard .t.jump:hover { text-decoration: underline; }
+.mcard .art.jump:hover { filter: brightness(.92); }

@@ -23,6 +23,12 @@ const Media = (() => {
     vol: '<svg width="15" height="15" viewBox="0 0 16 16"><path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/><path d="M10.5 5.5a3.5 3.5 0 0 1 0 5M12.3 3.6a6 6 0 0 1 0 8.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
     muted: '<svg width="15" height="15" viewBox="0 0 16 16"><path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/><path d="M10.5 6l4 4m0-4l-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
   };
+  // Web app to open for a Chromecast app / Spotify, matched by app name.
+  const APP_SITES = [
+    [/spotify/i, 'open.spotify.com'], [/youtube music/i, 'music.youtube.com'], [/youtube/i, 'www.youtube.com'],
+    [/tidal/i, 'listen.tidal.com'], [/soundcloud/i, 'soundcloud.com'], [/pandora/i, 'www.pandora.com'],
+    [/apple music/i, 'music.apple.com'], [/amazon music/i, 'music.amazon.com'], [/deezer/i, 'www.deezer.com'],
+  ];
   const SPOTIFY_SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
 
   const m = {
@@ -195,7 +201,7 @@ const Media = (() => {
         key: 'cast:' + d.id, kind: 'cast', id: d.id,
         title: d.media.title || d.app || 'Casting',
         artist: d.media.artist || (d.media.title ? d.app : '') || '',
-        source: d.name + (d.app ? ' · ' + d.app : ''), device: d.name,
+        source: d.name + (d.app ? ' · ' + d.app : ''), device: d.name, app: d.app,
         art: d.media.art,
         playing: d.media.state === 'PLAYING' || d.media.state === 'BUFFERING',
         position: d.media.position, duration: d.media.duration, ts: Date.now(),
@@ -415,6 +421,22 @@ const Media = (() => {
     setTimeout(() => refresh(true), item.kind === 'spotify' ? 700 : 350);
   }
 
+  async function openApp(item) {
+    if (item.kind === 'tab') return tabAction(item, 'jump');
+    const name = item.kind === 'spotify' ? 'Spotify' : item.app || '';
+    const hit = APP_SITES.find(([re]) => re.test(name));
+    if (!hit) return toast(`No web app known for ${name || 'this'}.`);
+    const host = hit[1];
+    const tabs = await chrome.tabs.query({ url: `*://${host}/*` });
+    const t = tabs.find((x) => x.windowId === state.windowId) || tabs[0];
+    if (t) {
+      await chrome.tabs.update(t.id, { active: true });
+      await chrome.windows.update(t.windowId, { focused: true });
+    } else {
+      await chrome.tabs.create({ url: `https://${host}/`, windowId: state.windowId });
+    }
+  }
+
   // ---------- render ----------
   function artBox(item, cls) {
     const a = el('div', cls || 'art');
@@ -442,9 +464,14 @@ const Media = (() => {
   }
   function card(item) {
     const c = el('div', 'mcard');
-    c.append(artBox(item));
+    const goTitle = item.kind === 'tab' ? 'Go to this tab' : 'Open the web app';
+    const art = artBox(item);
+    art.classList.add('jump'); art.title = goTitle; art.onclick = () => openApp(item);
+    c.append(art);
     const meta = el('div', 'meta');
-    meta.append(el('div', 't', item.title || 'Untitled'));
+    const title = el('div', 't jump', item.title || 'Untitled');
+    title.title = goTitle; title.onclick = () => openApp(item);
+    meta.append(title);
     if (item.artist) meta.append(el('div', 'a', item.artist));
     const src = el('div', 'src');
     if (item.kind === 'spotify') {
