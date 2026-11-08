@@ -41,8 +41,8 @@ const Media = (() => {
   // Media messages appear just above the drawer / mini player rather than at the top.
   function mtoast(msg, ms = 2500) {
     const open = $('#mediaDrawer').classList.contains('open');
-    const mini = $('#miniPlayer');
-    const anchor = open ? $('#mediaDrawer') : !mini.hidden ? mini : $('#footer');
+    const wrap = $('#miniWrap');
+    const anchor = open ? $('#mediaDrawer') : wrap.classList.contains('shown') ? wrap : $('#footer');
     toast(msg, ms, anchor);
   }
   const m = {
@@ -721,8 +721,9 @@ const Media = (() => {
     const cur = current();
     $('#mediaBtn').classList.toggle('playing', items().some((i) => i.playing));
     $('#mediaBtn').classList.toggle('active', m.open);
-    if (m.open || !cur || m.hiddenSig === sig(cur)) { mini.hidden = true; return; }
-    mini.hidden = false;
+    const show = !m.open && !!cur && m.hiddenSig !== sig(cur);
+    $('#miniWrap').classList.toggle('shown', show);
+    if (!show) return; // keep the old contents while it slides closed
     mini.replaceChildren(artBox(cur, 'art'));
     const meta = el('div', 'meta');
     meta.append(el('div', 't', cur.title || ''), el('div', 'a', cur.artist || cur.source || ''));
