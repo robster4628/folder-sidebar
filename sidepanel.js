@@ -330,6 +330,27 @@ function renderSpaces() {
     box.append(b);
   }
 }
+// Leave search, switch to the folder's space, open it and everything above it, and scroll to it.
+function revealFolder(id) {
+  const chain = [id];
+  for (let p = state.parentOf.get(id); p && p !== state.rootId; p = state.parentOf.get(p)) chain.push(p);
+  const spaceId = chain[chain.length - 1];
+  for (const f of chain.slice(0, -1)) state.expanded.add(f);
+  saveExpanded();
+  if (state.spaces.some((x) => x.id === spaceId)) {
+    state.activeSpaceId = spaceId;
+    chrome.storage.local.set({ activeSpace: spaceId });
+  }
+  $('#filter').value = '';
+  state.filter = '';
+  render();
+  const row = document.querySelector(`#tree .row[data-id="${CSS.escape(id)}"]`);
+  if (row) {
+    row.scrollIntoView({ block: 'center' });
+    row.classList.add('flash');
+    setTimeout(() => row.classList.remove('flash'), 1200);
+  }
+}
 function renderResults() {
   const box = $('#results');
   box.replaceChildren();
@@ -339,6 +360,17 @@ function renderResults() {
   const spaceTitle = (n) => { // first element of path is the space folder title
     return n.path && n.path.length ? n.path.join(' › ') : '';
   };
+  // Folders first: clicking one jumps to it in its space.
+  const spaceIds = new Set(state.spaces.map((x) => x.id));
+  for (const n of state.byId.values()) {
+    if (n.url || spaceIds.has(n.id) || n.id === state.pinnedId || count >= 50) continue;
+    if (!hit((n.title || '') + ' ' + n.path.join(' '))) continue;
+    const r = folderRow(n, 0);
+    r.dataset.reveal = '1';
+    r.title = 'Show this folder';
+    r.append(el('span', 'sub', spaceTitle(n)));
+    box.append(r); count++;
+  }
   for (const n of state.byId.values()) {
     if (!n.url || count >= 200) continue;
     if (!hit((n.title || '') + ' ' + n.url + ' ' + n.path.join(' '))) continue;
@@ -671,7 +703,8 @@ function wire() {
     }
     if (r.classList.contains('editing')) return;
     const forceNew = e.metaKey || e.ctrlKey;
-    if (kind === 'folder') {
+    if (kind === 'folder' && r.dataset.reveal) revealFolder(id);
+    else if (kind === 'folder') {
       state.expanded.has(id) ? state.expanded.delete(id) : state.expanded.add(id);
       saveExpanded(); render();
     } else if (kind === 'bm' || kind === 'app') openBookmark(id, forceNew);

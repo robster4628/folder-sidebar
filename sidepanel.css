@@ -227,3 +227,5 @@ body {
 .menu button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mcard input[type=range] { min-width: 50px; flex: 1 1 60px; max-width: 84px; }
 .linkbtn.sp-play { margin: 0 0 8px; width: 100%; padding: 7px; }
+.row.flash { animation: flash 1.2s ease; }
+@keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--accent) 25%, transparent); } 100% { background: transparent; } }
