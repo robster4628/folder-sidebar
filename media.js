@@ -65,6 +65,10 @@ const Media = (() => {
       if (v) art = 'https://i.ytimg.com/vi/' + v + '/mqdefault.jpg';
     }
     const playing = live ? !live.paused && !live.ended : !!(ms && ms.playbackState === 'playing');
+    const yt = document.getElementById('movie_player');
+    let volume = null;
+    if (yt && typeof yt.getVolume === 'function') volume = Math.round(yt.getVolume());
+    else if (live || els[0]) volume = Math.round((live || els[0]).volume * 100);
     return {
       hasMedia: els.length > 0 || !!md,
       supported: !!site,
@@ -76,9 +80,10 @@ const Media = (() => {
       duration: live && isFinite(live.duration) ? live.duration : null,
       canNext: !!site && usable(site.next),
       canPrev: !!site && usable(site.prev),
+      volume,
     };
   }
-  function actOnPage(sites, action) {
+  function actOnPage(sites, action, level) {
     const host = location.hostname;
     const hit = sites.find(([re]) => new RegExp(re).test(host));
     const site = hit ? hit[1] : null;
@@ -89,6 +94,17 @@ const Media = (() => {
       const playing = els.filter((e) => !e.paused);
       if (playing.length) playing.forEach((e) => e.pause());
       else { const e = els.find((x) => x.currentTime > 0) || els[0]; if (e) e.play(); }
+      return true;
+    }
+    if (action === 'volume') {
+      const v = Math.max(0, Math.min(100, Number(level) || 0));
+      const yt = document.getElementById('movie_player');
+      if (yt && typeof yt.setVolume === 'function') {
+        yt.setVolume(v);
+        if (v > 0 && yt.isMuted && yt.isMuted()) yt.unMute();
+      } else {
+        document.querySelectorAll('video, audio').forEach((e) => { e.volume = v / 100; if (v > 0) e.muted = false; });
+      }
       return true;
     }
     if (action === 'next') return click(site && site.next);
@@ -127,6 +143,7 @@ const Media = (() => {
         position: info && info.position, duration: info && info.duration, ts: Date.now(),
         canToggle: !!info, canNext: !!(info && info.canNext), canPrev: !!(info && info.canPrev),
         muted: !!(tab.mutedInfo && tab.mutedInfo.muted),
+        volume: info && info.volume != null ? info.volume : null,
         limited: !info, // no site access: only mute / jump
         needsAccess: !info && SITES.some(([re]) => new RegExp(re).test(host)),
         order: mediaTabs[id] || Date.now(),
@@ -139,7 +156,7 @@ const Media = (() => {
     items.sort((a, b) => (b.playing - a.playing) || (b.order - a.order));
     m.tabs = items;
   }
-  async function tabAction(item, action) {
+  async function tabAction(item, action, body) {
     if (action === 'mute') return chrome.tabs.update(item.tabId, { muted: !item.muted });
     if (action === 'jump') {
       await chrome.tabs.update(item.tabId, { active: true });
@@ -152,7 +169,10 @@ const Media = (() => {
       m.tabs = m.tabs.filter((t) => t !== item);
       return;
     }
-    await chrome.scripting.executeScript({ target: { tabId: item.tabId }, world: 'MAIN', func: actOnPage, args: [SITES, action] });
+    await chrome.scripting.executeScript({
+      target: { tabId: item.tabId }, world: 'MAIN', func: actOnPage,
+      args: [SITES, action, body && body.level != null ? body.level : null],
+    });
   }
   async function allowSites() {
     const ok = await chrome.permissions.request({ origins: SITE_ORIGINS });
@@ -359,12 +379,17 @@ const Media = (() => {
   function items() {
     const list = [];
     if (m.spotify) list.push(m.spotify);
+    const sp = m.spotify;
     for (const c of m.casts) {
-      // Spotify playing on this Chromecast is already shown (with better controls) by the Spotify card.
-      if (m.spotify && m.spotify.device && c.device === m.spotify.device && /spotify/i.test(c.source)) continue;
+      // Spotify playing on a Chromecast is already shown (with better controls) by the Spotify card.
+      if (sp && /spotify/i.test(c.source) && (c.device === sp.device || c.title === sp.title)) continue;
       list.push(c);
     }
-    list.push(...m.tabs);
+    for (const t of m.tabs) {
+      // Same for the Spotify web player tab.
+      if (sp && t.source === 'open.spotify.com') continue;
+      list.push(t);
+    }
     return list.sort((a, b) => b.playing - a.playing);
   }
   function current() {
@@ -377,7 +402,7 @@ const Media = (() => {
   async function run(item, action, body) {
     m.focusKey = item.key;
     try {
-      if (item.kind === 'tab') await tabAction(item, action);
+      if (item.kind === 'tab') await tabAction(item, action, body);
       else if (item.kind === 'cast') await castAction(item, action, body);
       else await spotifyAction(item, action, body);
       if (action === 'toggle') { item.playing = !item.playing; item.position = posNow(item); item.ts = Date.now(); }
@@ -406,6 +431,15 @@ const Media = (() => {
     b.onclick = (e) => { e.stopPropagation(); fn(e); };
     return b;
   }
+  function volumeSlider(item) {
+    const r = el('input'); r.type = 'range'; r.min = 0; r.max = 100; r.value = item.volume; r.title = 'Volume';
+    r.onpointerdown = () => (m.dragging = true);
+    // Tabs follow the slider live; Chromecast and Spotify update when you let go.
+    if (item.kind === 'tab') r.oninput = () => tabAction(item, 'volume', { level: Number(r.value) }).catch(() => {});
+    r.onchange = () => { m.dragging = false; run(item, 'volume', { level: Number(r.value) }); };
+    r.onblur = () => (m.dragging = false);
+    return r;
+  }
   function card(item) {
     const c = el('div', 'mcard');
     c.append(artBox(item));
@@ -432,15 +466,10 @@ const Media = (() => {
     );
     if (item.kind === 'tab') {
       ctrls.append(btn(item.muted ? 'muted' : 'vol', item.muted ? 'Unmute tab' : 'Mute tab', () => run(item, 'mute')));
+      if (item.volume != null) ctrls.append(volumeSlider(item));
     } else {
       if (item.kind === 'cast') ctrls.append(btn(item.muted ? 'muted' : 'vol', item.muted ? 'Unmute' : 'Mute', () => run(item, 'mute', { muted: !item.muted })));
-      if (item.volume != null) {
-        const r = el('input'); r.type = 'range'; r.min = 0; r.max = 100; r.value = item.volume; r.title = 'Volume';
-        r.onpointerdown = () => (m.dragging = true);
-        r.onchange = () => { m.dragging = false; run(item, 'volume', { level: Number(r.value) }); };
-        r.onblur = () => (m.dragging = false);
-        ctrls.append(r);
-      }
+      if (item.volume != null) ctrls.append(volumeSlider(item));
       if (item.kind === 'cast') ctrls.append(btn('stop', 'Stop casting', () => run(item, 'stop')));
     }
     c.append(ctrls);
