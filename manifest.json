@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0kHPhRemtEc95h+GBxFUngNbUyerT8p4vXYY5MSA2aCoKwciBVQODxPtHrAqanDNAM0g3ZX+DPHqL9bLclxgdGyEvERlNzxYtbEoS4RD35x9CfnEl3Y1U7YzfBGDMsPVDO3VFCpGdx+Jpv+OfesSSXgMnrgLdxB9VRZUjvhjjkxRXk4rYkkcMsTfVYXQm+SuwWm8p+4pIviD3eBtjERwWcJ4ehbsatkA3Z5JSydr2ql83a+SEB0vHghUH03Nh38VzBUt89s3gyro1fEcjbDu6z6NmCf5W4kTyAAen1MW8mm63NwTee5JnSgWhJewbzMeTP1G25hlKC2s2ojxDWk7bQIDAQAB",
   "name": "Folder Sidebar",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "Arc-style spaces, pinned grid, nested folders and a media drawer in Chrome's side panel. Saved links are ordinary Chrome bookmarks.",
   "permissions": [
     "sidePanel",

@@ -43,6 +43,8 @@ const Media = (() => {
     spotifyBackoffUntil: 0,
     sitesAllowed: false,
     focusKey: null,    // last item the user touched (mini player prefers it)
+    lastPlaying: {},   // key -> time it was last seen playing
+    hiddenSig: null,   // mini player dismissed for this track
     dragging: false,
     tick: 0,
   };
@@ -398,10 +400,19 @@ const Media = (() => {
     }
     return list.sort((a, b) => b.playing - a.playing);
   }
+  const PAUSED_GRACE = 3 * 60 * 1000; // keep a paused track in the mini player for 3 minutes
+  const sig = (i) => i.key + '|' + i.title;
   function current() {
     const all = items();
-    return all.find((i) => i.key === m.focusKey && (i.playing || all.every((x) => !x.playing))) ||
-      all.find((i) => i.playing) || null;
+    const now = Date.now();
+    for (const i of all) if (i.playing) m.lastPlaying[i.key] = now;
+    const playing = all.filter((i) => i.playing);
+    if (playing.length) return playing.find((i) => i.key === m.focusKey) || playing[0];
+    // Nothing playing: only show something the user recently had playing.
+    const recent = all
+      .filter((i) => now - (m.lastPlaying[i.key] || 0) < PAUSED_GRACE)
+      .sort((a, b) => (b.key === m.focusKey) - (a.key === m.focusKey) || m.lastPlaying[b.key] - m.lastPlaying[a.key]);
+    return recent[0] || null;
   }
   const posNow = (i) => (i.position == null ? null : i.position + (i.playing ? (Date.now() - i.ts) / 1000 : 0));
 
@@ -547,14 +558,15 @@ const Media = (() => {
     const cur = current();
     $('#mediaBtn').classList.toggle('playing', items().some((i) => i.playing));
     $('#mediaBtn').classList.toggle('active', m.open);
-    if (m.open || !cur) { mini.hidden = true; return; }
+    if (m.open || !cur || m.hiddenSig === sig(cur)) { mini.hidden = true; return; }
     mini.hidden = false;
     mini.replaceChildren(artBox(cur, 'art'));
     const meta = el('div', 'meta');
     meta.append(el('div', 't', cur.title || ''), el('div', 'a', cur.artist || cur.source || ''));
     mini.append(meta,
       btn(cur.playing ? 'pause' : 'play', cur.playing ? 'Pause' : 'Play', () => run(cur, 'toggle'), !cur.canToggle),
-      btn('next', 'Next', () => run(cur, 'next'), !cur.canNext));
+      btn('next', 'Next', () => run(cur, 'next'), !cur.canNext),
+      btn('×', 'Hide until the next track', () => { m.hiddenSig = sig(cur); renderMini(); }, false, 'hide'));
   }
   function render() {
     renderMini();

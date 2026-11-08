@@ -221,3 +221,5 @@ body {
 .mcard .jump { cursor: pointer; }
 .mcard .t.jump:hover { text-decoration: underline; }
 .mcard .art.jump:hover { filter: brightness(.92); }
+#miniPlayer button.hide { width: 18px; color: var(--muted); font-size: 14px; visibility: hidden; }
+#miniPlayer:hover button.hide { visibility: visible; }
