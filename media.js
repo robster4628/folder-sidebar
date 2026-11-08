@@ -439,20 +439,65 @@ const Media = (() => {
       mtoast(`Playing your ${uris.length} most recent Liked Songs.`);
     } catch (e) { mtoast(noDevice(e) ? deviceHint : e.message, 6000); }
   }
+  // Playlists Spotify won't list to apps (prompted playlists, radio, Made For You) can still be
+  // played by link, so the user can add them by hand. Synced between machines.
+  async function savedLinks() { return (await chrome.storage.sync.get('spotifyLinks')).spotifyLinks || []; }
+  function parseSpotifyLink(text) {
+    const t = (text || '').trim();
+    let mm = t.match(/open\.spotify\.com\/(?:intl-[a-z-]+\/)?(playlist|album|artist|show)\/([A-Za-z0-9]+)/);
+    if (mm) return `spotify:${mm[1]}:${mm[2]}`;
+    mm = t.match(/^spotify:(playlist|album|artist|show):([A-Za-z0-9]+)$/);
+    return mm ? t : null;
+  }
+  async function addLink() {
+    const res = await modal((box, done) => {
+      box.append(el('p', '', 'Add a playlist by link'));
+      box.append(el('p', 'hint', 'In Spotify, open the playlist (or radio, album, artist) and use Share → Copy link.'));
+      const link = el('input'); link.type = 'text'; link.placeholder = 'https://open.spotify.com/playlist/…';
+      const name = el('input'); name.type = 'text'; name.placeholder = 'Name to show (optional)';
+      name.style.marginTop = '8px';
+      const go = () => done({ link: link.value, name: name.value.trim() });
+      link.onkeydown = name.onkeydown = (e) => { if (e.key === 'Enter') go(); };
+      box.append(link, name);
+      buttons(box, done, 'Add', 'primary', () => ({ link: link.value, name: name.value.trim() }));
+    });
+    if (!res) return;
+    const uri = parseSpotifyLink(res.link);
+    if (!uri) return mtoast('That doesn\u2019t look like a Spotify playlist, album, artist or show link.', 5000);
+    let name = res.name;
+    if (!name && uri.startsWith('spotify:playlist:')) {
+      try { name = ((await sp(`/playlists/${uri.split(':').pop()}?fields=name`)) || {}).name; } catch {}
+    }
+    name = name || 'Spotify ' + uri.split(':')[1];
+    const list = (await savedLinks()).filter((x) => x.uri !== uri);
+    list.unshift({ name, uri });
+    await chrome.storage.sync.set({ spotifyLinks: list });
+    mtoast(`Added “${name}”.`);
+  }
+  async function removeLinkMenu(x, y) {
+    const list = await savedLinks();
+    showMenu(x, y, list.map((l) => ({
+      label: 'Remove “' + l.name + '”', danger: true,
+      fn: async () => { await chrome.storage.sync.set({ spotifyLinks: list.filter((z) => z.uri !== l.uri) }); mtoast(`Removed “${l.name}”.`); },
+    })));
+  }
+  async function playContext(uri) {
+    try { await startPlayback({ context_uri: uri }); }
+    catch (e) { mtoast(noDevice(e) || /not found/i.test(e.message) ? deviceHint : e.message, 6000); }
+  }
   async function playPlaylistMenu(x, y) {
     if (needReconnect()) return;
     try {
-      const list = await playlists();
+      const [list, links] = await Promise.all([playlists(), savedLinks()]);
+      const known = new Set(links.map((l) => l.uri));
       showMenu(x, y, [
         { label: '♥ Liked Songs', fn: playLiked },
+        ...links.map((l) => ({ label: '★ ' + l.name, fn: () => playContext(l.uri) })),
         list.length ? '-' : null,
-        ...list.map((pl) => ({
-          label: pl.name,
-          fn: async () => {
-            try { await startPlayback({ context_uri: pl.uri }); }
-            catch (e) { mtoast(noDevice(e) || /not found/i.test(e.message) ? deviceHint : e.message, 6000); }
-          },
-        })),
+        ...list.filter((pl) => !known.has(pl.uri)).map((pl) => ({ label: pl.name, fn: () => playContext(pl.uri) })),
+        '-',
+        { label: 'Add a playlist by link…', fn: addLink },
+        links.length ? { label: 'Remove an added playlist…', fn: () => removeLinkMenu(x, y) } : null,
       ]);
     } catch (e) { mtoast(e.message); }
   }

@@ -241,3 +241,4 @@ body {
 .linkbtn.sp-play { margin: 0 0 8px; width: 100%; padding: 7px; }
 .row.flash { animation: flash 1.2s ease; }
 @keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--accent) 25%, transparent); } 100% { background: transparent; } }
+.modal p.hint { font-size: 12px; opacity: .7; margin-top: -4px; }
