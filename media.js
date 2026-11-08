@@ -401,24 +401,63 @@ const Media = (() => {
       })));
     } catch (e) { toast(e.message); }
   }
+  async function startPlayback(body) {
+    const dev = m.spotify && m.spotify.deviceId;
+    await sp('/me/player/play' + (dev ? '?device_id=' + encodeURIComponent(dev) : ''), 'PUT', body);
+    m.focusKey = 'spotify';
+    setTimeout(() => refresh(true), 700);
+  }
+  const noDevice = (e) => /no active device/i.test(e.message);
+  const deviceHint = 'Start Spotify on a device first (phone, desktop app or web player), then try again.';
+  let meId = null;
+  async function playLiked() {
+    try {
+      if (!meId) meId = ((await sp('/me')) || {}).id;
+      // 1) Spotify's own Liked Songs context, so it keeps going and shuffle works like the app.
+      if (meId) {
+        try { await startPlayback({ context_uri: `spotify:user:${meId}:collection` }); return; }
+        catch (e) { if (noDevice(e)) throw e; }
+      }
+      // 2) Fallback: fetch the most recent liked tracks and play them as a list.
+      const uris = [];
+      let url = '/me/tracks?limit=50';
+      while (url && uris.length < 200) {
+        const r = await sp(url);
+        for (const it of (r && r.items) || []) if (it && it.track && it.track.uri) uris.push(it.track.uri);
+        url = r && r.next ? r.next.replace('https://api.spotify.com/v1', '') : null;
+      }
+      if (!uris.length) throw new Error('Spotify didn\u2019t return your Liked Songs.');
+      await startPlayback({ uris });
+      toast(`Playing your ${uris.length} most recent Liked Songs.`);
+    } catch (e) { toast(noDevice(e) ? deviceHint : e.message, 6000); }
+  }
+  async function playRadio(item) {
+    const id = item && item.uri && item.uri.split(':').pop();
+    if (!id) return;
+    try {
+      await startPlayback({ context_uri: `spotify:station:track:${id}` });
+      toast(`Starting radio from “${item.title}”`);
+    } catch (e) {
+      toast(noDevice(e) ? deviceHint : 'Spotify won\u2019t start song radio from outside its own apps. Use “Go to song radio” in Spotify instead.', 7000);
+    }
+  }
   async function playPlaylistMenu(x, y) {
     if (needReconnect()) return;
     try {
       const list = await playlists();
-      if (!list.length) return toast('No playlists found.');
-      showMenu(x, y, list.map((pl) => ({
-        label: pl.name,
-        fn: async () => {
-          try {
-            const dev = m.spotify && m.spotify.deviceId;
-            await sp('/me/player/play' + (dev ? '?device_id=' + encodeURIComponent(dev) : ''), 'PUT', { context_uri: pl.uri });
-            m.focusKey = 'spotify';
-            setTimeout(() => refresh(true), 700);
-          } catch (e) {
-            toast(/no active device|not found/i.test(e.message) ? 'Start Spotify on a device first (phone, desktop app or web player), then try again.' : e.message, 6000);
-          }
-        },
-      })));
+      const cur = m.spotify && m.spotify.isTrack ? m.spotify : null;
+      showMenu(x, y, [
+        { label: '♥ Liked Songs', fn: playLiked },
+        cur ? { label: `📻 Radio from “${cur.title}”`, fn: () => playRadio(cur) } : null,
+        list.length ? '-' : null,
+        ...list.map((pl) => ({
+          label: pl.name,
+          fn: async () => {
+            try { await startPlayback({ context_uri: pl.uri }); }
+            catch (e) { toast(noDevice(e) || /not found/i.test(e.message) ? deviceHint : e.message, 6000); }
+          },
+        })),
+      ]);
     } catch (e) { toast(e.message); }
   }
 
