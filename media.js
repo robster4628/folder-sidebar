@@ -5,7 +5,7 @@
 
 const Media = (() => {
   const HELPER = 'http://127.0.0.1:47800';
-  const SITE_ORIGINS = ['*://*.youtube.com/*', '*://listen.tidal.com/*', '*://open.spotify.com/*', '*://*.soundcloud.com/*'];
+  const SITE_ORIGINS = ['*://*.youtube.com/*', '*://listen.tidal.com/*', '*://open.spotify.com/*', '*://*.soundcloud.com/*', '*://*.bandcamp.com/*'];
   // [host regex, selectors] — passed into pages as plain strings.
   const SITES = [
     ['(^|\\.)music\\.youtube\\.com$', { play: '#play-pause-button', next: 'ytmusic-player-bar .next-button', prev: 'ytmusic-player-bar .previous-button' }],
@@ -13,12 +13,17 @@ const Media = (() => {
     ['^listen\\.tidal\\.com$', { play: '[data-test="play"], [data-test="pause"]', next: '[data-test="next"]', prev: '[data-test="previous"]' }],
     ['^open\\.spotify\\.com$', { play: '[data-testid="control-button-playpause"]', next: '[data-testid="control-button-skip-forward"]', prev: '[data-testid="control-button-skip-back"]' }],
     ['(^|\\.)soundcloud\\.com$', { play: '.playControl', next: '.skipControl__next', prev: '.skipControl__previous' }],
+    ['(^|\\.)bandcamp\\.com$', { play: '.inline_player .playbutton, .playbutton', next: '.inline_player .nextbutton', prev: '.inline_player .prevbutton' }],
   ];
   const ICON = {
     prev: '<svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 2.5h1.6v11H3zM14 2.8v10.4a.5.5 0 0 1-.78.42L5.6 8.42a.5.5 0 0 1 0-.84l7.62-5.2A.5.5 0 0 1 14 2.8z" fill="currentColor"/></svg>',
     next: '<svg width="14" height="14" viewBox="0 0 16 16"><path d="M11.4 2.5H13v11h-1.6zM2 2.8v10.4a.5.5 0 0 0 .78.42l7.62-5.2a.5.5 0 0 0 0-.84L2.78 2.38A.5.5 0 0 0 2 2.8z" fill="currentColor"/></svg>',
     play: '<svg width="16" height="16" viewBox="0 0 16 16"><path d="M4 2.6v10.8a.6.6 0 0 0 .92.5l8.4-5.4a.6.6 0 0 0 0-1L4.92 2.1A.6.6 0 0 0 4 2.6z" fill="currentColor"/></svg>',
     pause: '<svg width="16" height="16" viewBox="0 0 16 16"><rect x="3.5" y="2.5" width="3" height="11" rx=".8" fill="currentColor"/><rect x="9.5" y="2.5" width="3" height="11" rx=".8" fill="currentColor"/></svg>',
+    heart: '<svg width="15" height="15" viewBox="0 0 16 16"><path d="M8 13.6S2 10 2 5.9A3.1 3.1 0 0 1 8 4.4a3.1 3.1 0 0 1 6 1.5C14 10 8 13.6 8 13.6z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    hearted: '<svg width="15" height="15" viewBox="0 0 16 16"><path d="M8 13.6S2 10 2 5.9A3.1 3.1 0 0 1 8 4.4a3.1 3.1 0 0 1 6 1.5C14 10 8 13.6 8 13.6z" fill="#1ed760" stroke="#1ed760" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    addto: '<svg width="15" height="15" viewBox="0 0 16 16"><path d="M2 4h8M2 7.5h8M2 11h5M12 9v5M9.5 11.5h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    playlists: '<svg width="15" height="15" viewBox="0 0 16 16"><path d="M2 4h9M2 7.5h9M2 11h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10 10v4.2a.4.4 0 0 0 .62.33l3.2-2.1a.4.4 0 0 0 0-.66l-3.2-2.1A.4.4 0 0 0 10 10z" fill="currentColor"/></svg>',
     stop: '<svg width="12" height="12" viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" rx="1.5" fill="currentColor"/></svg>',
     vol: '<svg width="15" height="15" viewBox="0 0 16 16"><path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/><path d="M10.5 5.5a3.5 3.5 0 0 1 0 5M12.3 3.6a6 6 0 0 1 0 8.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
     muted: '<svg width="15" height="15" viewBox="0 0 16 16"><path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/><path d="M10.5 6l4 4m0-4l-4 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
@@ -29,7 +34,9 @@ const Media = (() => {
     [/tidal/i, 'listen.tidal.com'], [/soundcloud/i, 'soundcloud.com'], [/pandora/i, 'www.pandora.com'],
     [/apple music/i, 'music.apple.com'], [/amazon music/i, 'music.amazon.com'], [/deezer/i, 'www.deezer.com'],
   ];
-  const SPOTIFY_SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+  const SPOTIFY_BASE_SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+  const SPOTIFY_EXTRA_SCOPES = 'user-library-read user-library-modify playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public';
+  const SPOTIFY_SCOPES = SPOTIFY_BASE_SCOPES + ' ' + SPOTIFY_EXTRA_SCOPES;
 
   const m = {
     open: false,
@@ -58,7 +65,9 @@ const Media = (() => {
       const e = q && document.querySelector(q);
       return !!(e && e.offsetParent !== null && !e.disabled && e.getAttribute('aria-disabled') !== 'true');
     };
-    const els = [...document.querySelectorAll('video, audio')];
+    const hooked = typeof window.__fsMedia === 'function' ? window.__fsMedia() : [];
+    const els = [...new Set([...document.querySelectorAll('video, audio'), ...hooked])];
+    const acts = window.__fsActions || {};
     const live = els.find((e) => !e.paused && !e.ended) ||
       els.filter((e) => e.currentTime > 0).sort((a, b) => (b.duration || 0) - (a.duration || 0))[0] || null;
     const ms = navigator.mediaSession;
@@ -86,9 +95,11 @@ const Media = (() => {
       playing,
       position: live ? live.currentTime : null,
       duration: live && isFinite(live.duration) ? live.duration : null,
-      canNext: !!site && usable(site.next),
-      canPrev: !!site && usable(site.prev),
+      canNext: (!!site && usable(site.next)) || !!acts.nexttrack,
+      canPrev: (!!site && usable(site.prev)) || !!acts.previoustrack,
       volume,
+      // Added after the page's player was already set up: reload once to get volume / skip.
+      lateHook: window.__fsEarly === false && !hooked.length && !acts.nexttrack && !(live && live.isConnected),
     };
   }
   function actOnPage(sites, action, level) {
@@ -96,9 +107,14 @@ const Media = (() => {
     const hit = sites.find(([re]) => new RegExp(re).test(host));
     const site = hit ? hit[1] : null;
     const click = (q) => { const b = q && document.querySelector(q); if (b) { b.click(); return true; } return false; };
+    const hooked = typeof window.__fsMedia === 'function' ? window.__fsMedia() : [];
+    const acts = window.__fsActions || {};
+    const fire = (name) => { if (typeof acts[name] !== 'function') return false; acts[name]({ action: name }); return true; };
     if (action === 'toggle') {
       if (site && click(site.play)) return true;
-      const els = [...document.querySelectorAll('video, audio')];
+      const els = [...new Set([...document.querySelectorAll('video, audio'), ...hooked])];
+      const isPlaying = els.some((e) => !e.paused) || (navigator.mediaSession && navigator.mediaSession.playbackState === 'playing');
+      if (fire(isPlaying ? 'pause' : 'play')) return true;
       const playing = els.filter((e) => !e.paused);
       if (playing.length) playing.forEach((e) => e.pause());
       else { const e = els.find((x) => x.currentTime > 0) || els[0]; if (e) e.play(); }
@@ -111,12 +127,12 @@ const Media = (() => {
         yt.setVolume(v);
         if (v > 0 && yt.isMuted && yt.isMuted()) yt.unMute();
       } else {
-        document.querySelectorAll('video, audio').forEach((e) => { e.volume = v / 100; if (v > 0) e.muted = false; });
+        new Set([...document.querySelectorAll('video, audio'), ...hooked]).forEach((e) => { e.volume = v / 100; if (v > 0) e.muted = false; });
       }
       return true;
     }
-    if (action === 'next') return click(site && site.next);
-    if (action === 'prev') return click(site && site.prev);
+    if (action === 'next') return click(site && site.next) || fire('nexttrack');
+    if (action === 'prev') return click(site && site.prev) || fire('previoustrack');
     return false;
   }
 
@@ -135,6 +151,7 @@ const Media = (() => {
       if (!tab.url || tab.url.startsWith(chrome.runtime.getURL(''))) return;
       let info = null;
       try {
+        await chrome.scripting.executeScript({ target: { tabId: id }, world: 'MAIN', files: ['hook.js'] });
         const [r] = await chrome.scripting.executeScript({ target: { tabId: id }, world: 'MAIN', func: probePage, args: [SITES] });
         info = r && r.result;
       } catch { /* no access to this site */ }
@@ -152,8 +169,9 @@ const Media = (() => {
         canToggle: !!info, canNext: !!(info && info.canNext), canPrev: !!(info && info.canPrev),
         muted: !!(tab.mutedInfo && tab.mutedInfo.muted),
         volume: info && info.volume != null ? info.volume : null,
+        lateHook: !!(info && info.lateHook && info.volume == null),
         limited: !info, // no site access: only mute / jump
-        needsAccess: !info && SITES.some(([re]) => new RegExp(re).test(host)),
+        needsAccess: !info && /^https?:/.test(tab.url) ? siteOrigin(host) : null,
         order: mediaTabs[id] || Date.now(),
       });
     }));
@@ -181,6 +199,18 @@ const Media = (() => {
       target: { tabId: item.tabId }, world: 'MAIN', func: actOnPage,
       args: [SITES, action, body && body.level != null ? body.level : null],
     });
+  }
+  function siteOrigin(host) {
+    if (!host) return null;
+    if (/^[\d.]+$/.test(host) || host === 'localhost') return '*://' + host + '/*';
+    const parts = host.split('.');
+    const base = parts.slice(-2).join('.');
+    return '*://*.' + base + '/*'; // also matches the bare domain
+  }
+  async function allowSite(origin, host) {
+    const ok = await chrome.permissions.request({ origins: [origin] });
+    if (ok) toast(`Controls turned on for ${host}. If skip doesn't work yet, reload that tab once.`, 6000);
+    refresh(true);
   }
   async function allowSites() {
     const ok = await chrome.permissions.request({ origins: SITE_ORIGINS });
@@ -251,6 +281,7 @@ const Media = (() => {
         a.access = j.access_token;
         a.expires = Date.now() + j.expires_in * 1000;
         if (j.refresh_token) a.refresh = j.refresh_token;
+        if (j.scope) a.scope = j.scope;
         await saveAuth();
       })().finally(() => { refreshing = null; });
     }
@@ -298,11 +329,99 @@ const Media = (() => {
         position: (p.progress_ms || 0) / 1000, duration: (it.duration_ms || 0) / 1000, ts: Date.now(),
         canToggle: true, canNext: true, canPrev: true,
         volume: p.device && p.device.supports_volume !== false ? p.device.volume_percent : null,
+        uri: it.uri, isTrack: it.type === 'track',
+        liked: likedCache.has(it.uri) ? likedCache.get(it.uri) : null,
       };
+      if (it.type === 'track' && !likedCache.has(it.uri) && hasExtraScopes()) checkLiked(it.uri);
     } catch (e) {
       if (!m.spotifyError) m.spotifyError = e.message;
     }
   }
+  // ----- likes & playlists -----
+  const likedCache = new Map(); // uri -> boolean
+  let playlistCache = null, playlistCacheAt = 0;
+  function hasExtraScopes() {
+    const granted = ((m.spotifyAuth && m.spotifyAuth.scope) || '').split(' ');
+    return SPOTIFY_EXTRA_SCOPES.split(' ').every((x) => granted.includes(x));
+  }
+  function needReconnect() {
+    if (hasExtraScopes()) return false;
+    toast('Reconnect Spotify (⋯ → Music Settings → Disconnect, then Connect) to turn on likes and playlists.', 7000);
+    return true;
+  }
+  async function checkLiked(uri) {
+    likedCache.set(uri, null);
+    try {
+      let r;
+      try { r = await sp('/me/library/contains?uris=' + encodeURIComponent(uri)); }
+      catch { r = await sp('/me/tracks/contains?ids=' + uri.split(':').pop()); }
+      likedCache.set(uri, Array.isArray(r) ? !!r[0] : null);
+      if (m.spotify && m.spotify.uri === uri) { m.spotify.liked = likedCache.get(uri); render(); }
+    } catch { likedCache.delete(uri); }
+  }
+  async function toggleLike(item) {
+    if (needReconnect() || !item.uri) return;
+    const want = !item.liked;
+    const q = encodeURIComponent(item.uri);
+    try {
+      try { await sp('/me/library?uris=' + q, want ? 'PUT' : 'DELETE'); }
+      catch { await sp('/me/tracks?ids=' + item.uri.split(':').pop(), want ? 'PUT' : 'DELETE'); }
+      likedCache.set(item.uri, want);
+      item.liked = want;
+      render();
+      toast(want ? 'Added to Liked Songs' : 'Removed from Liked Songs');
+    } catch (e) { toast(e.message); }
+  }
+  async function playlists() {
+    if (playlistCache && Date.now() - playlistCacheAt < 5 * 60 * 1000) return playlistCache;
+    const out = [];
+    let url = '/me/playlists?limit=50';
+    while (url && out.length < 300) {
+      const r = await sp(url);
+      out.push(...((r && r.items) || []).filter(Boolean));
+      url = r && r.next ? r.next.replace('https://api.spotify.com/v1', '') : null;
+    }
+    playlistCache = out; playlistCacheAt = Date.now();
+    return out;
+  }
+  async function addToPlaylistMenu(item, x, y) {
+    if (needReconnect() || !item.uri) return;
+    try {
+      const list = await playlists();
+      if (!list.length) return toast('No playlists found.');
+      showMenu(x, y, list.map((pl) => ({
+        label: pl.name,
+        fn: async () => {
+          try {
+            try { await sp(`/playlists/${pl.id}/items`, 'POST', { uris: [item.uri] }); }
+            catch (e) { if (/not found/i.test(e.message)) await sp(`/playlists/${pl.id}/tracks`, 'POST', { uris: [item.uri] }); else throw e; }
+            toast(`Added to ${pl.name}`);
+          } catch (e) { toast(/forbidden|refused/i.test(e.message) ? `You can't add to “${pl.name}” (not yours).` : e.message); }
+        },
+      })));
+    } catch (e) { toast(e.message); }
+  }
+  async function playPlaylistMenu(x, y) {
+    if (needReconnect()) return;
+    try {
+      const list = await playlists();
+      if (!list.length) return toast('No playlists found.');
+      showMenu(x, y, list.map((pl) => ({
+        label: pl.name,
+        fn: async () => {
+          try {
+            const dev = m.spotify && m.spotify.deviceId;
+            await sp('/me/player/play' + (dev ? '?device_id=' + encodeURIComponent(dev) : ''), 'PUT', { context_uri: pl.uri });
+            m.focusKey = 'spotify';
+            setTimeout(() => refresh(true), 700);
+          } catch (e) {
+            toast(/no active device|not found/i.test(e.message) ? 'Start Spotify on a device first (phone, desktop app or web player), then try again.' : e.message, 6000);
+          }
+        },
+      })));
+    } catch (e) { toast(e.message); }
+  }
+
   async function spotifyAction(item, action, body) {
     if (action === 'toggle') await sp(item.playing ? '/me/player/pause' : '/me/player/play', 'PUT');
     else if (action === 'next') await sp('/me/player/next', 'POST');
@@ -366,7 +485,7 @@ const Media = (() => {
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error_description || j.error || 'Token exchange failed');
-      m.spotifyAuth = { clientId, access: j.access_token, refresh: j.refresh_token, expires: Date.now() + j.expires_in * 1000 };
+      m.spotifyAuth = { clientId, access: j.access_token, refresh: j.refresh_token, expires: Date.now() + j.expires_in * 1000, scope: j.scope || '' };
       m.spotifyError = null;
       await saveAuth();
       toast('Spotify connected.');
@@ -506,6 +625,13 @@ const Media = (() => {
       ctrls.append(btn(item.muted ? 'muted' : 'vol', item.muted ? 'Unmute tab' : 'Mute tab', () => run(item, 'mute')));
       if (item.volume != null) ctrls.append(volumeSlider(item));
     } else {
+      if (item.kind === 'spotify') {
+        if (item.isTrack) {
+          ctrls.append(btn(item.liked ? 'hearted' : 'heart', item.liked ? 'Remove from Liked Songs' : 'Save to Liked Songs', () => toggleLike(item)));
+          ctrls.append(btn('addto', 'Add to playlist', (e) => addToPlaylistMenu(item, e.clientX, e.clientY)));
+        }
+        ctrls.append(btn('playlists', 'Play a playlist', (e) => playPlaylistMenu(e.clientX, e.clientY)));
+      }
       if (item.kind === 'cast') ctrls.append(btn(item.muted ? 'muted' : 'vol', item.muted ? 'Unmute' : 'Mute', () => run(item, 'mute', { muted: !item.muted })));
       if (item.volume != null) ctrls.append(volumeSlider(item));
       if (item.kind === 'cast') ctrls.append(btn('stop', 'Stop casting', () => run(item, 'stop')));
@@ -518,8 +644,11 @@ const Media = (() => {
       bar.append(fill);
       c.append(bar);
     }
-    if (item.needsAccess && !m.sitesAllowed) {
-      c.append(btn('Allow play/pause & skip for music sites', 'Lets the sidebar press this site’s player buttons', allowSites, false, 'linkbtn allow'));
+    if (item.lateHook) {
+      c.append(btn('Reload this tab once for volume & skip', 'The sidebar connected after this player started', () => chrome.tabs.reload(item.tabId), false, 'linkbtn allow'));
+    }
+    if (item.needsAccess) {
+      c.append(btn(`Allow controls on ${item.source}`, 'Lets the sidebar play, pause, skip and set volume on this site', () => allowSite(item.needsAccess, item.source), false, 'linkbtn allow'));
     }
     return c;
   }
@@ -535,7 +664,7 @@ const Media = (() => {
       // Each action closes this dialog first, since it may open its own.
       const then = (fn) => () => { done(null); fn(); };
       row(m.sitesAllowed ? 'ok' : '', m.sitesAllowed ? 'Music site controls on' : 'Music site controls off',
-        ...(m.sitesAllowed ? [] : [btn('Turn on', 'YouTube, YouTube Music, Tidal, Spotify web, SoundCloud', then(allowSites), false, 'linkbtn')]));
+        ...(m.sitesAllowed ? [] : [btn('Turn on', 'YouTube, YouTube Music, Tidal, Spotify web, SoundCloud, Bandcamp', then(allowSites), false, 'linkbtn')]));
       if (m.helper === 'ok') row('ok', `Chromecast helper running · ${m.castDevices} device${m.castDevices === 1 ? '' : 's'}`);
       else row('off', 'Chromecast helper not running', btn('How?', 'Set up the helper', then(helperHelp), false, 'linkbtn'));
       const connected = m.spotifyAuth && m.spotifyAuth.refresh;
@@ -576,6 +705,9 @@ const Media = (() => {
     const all = items();
     if (!all.length) list.append(el('div', 'mempty', 'Nothing playing. Sources are set up in ⋯ → Music Settings.'));
     for (const i of all) list.append(card(i));
+    if (!m.spotify && m.spotifyAuth && m.spotifyAuth.refresh) {
+      list.append(btn('Play a Spotify playlist…', 'Pick one of your playlists', (e) => playPlaylistMenu(e.clientX, e.clientY), false, 'linkbtn sp-play'));
+    }
   }
 
   // ---------- polling ----------

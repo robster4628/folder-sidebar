@@ -140,7 +140,7 @@ body {
 .modal button.primary { background: var(--accent); border-color: var(--accent); color: white; }
 .modal button.danger { background: #d33; border-color: #d33; color: white; }
 #toast {
-  position: fixed; left: 10px; right: 10px; bottom: 52px; z-index: 30; padding: 9px 12px; border-radius: 9px;
+  position: fixed; left: 10px; right: 10px; top: 46px; z-index: 30; padding: 9px 12px; border-radius: 9px;
   background: #222; color: #fff; font-size: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.3);
 }
 
@@ -223,3 +223,7 @@ body {
 .mcard .art.jump:hover { filter: brightness(.92); }
 #miniPlayer button.hide { width: 18px; color: var(--muted); font-size: 14px; visibility: hidden; }
 #miniPlayer:hover button.hide { visibility: visible; }
+.menu { max-height: 70vh; overflow-y: auto; max-width: calc(100vw - 8px); }
+.menu button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mcard input[type=range] { min-width: 50px; flex: 1 1 60px; max-width: 84px; }
+.linkbtn.sp-play { margin: 0 0 8px; width: 100%; padding: 7px; }

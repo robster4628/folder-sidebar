@@ -30,7 +30,10 @@ player sits above the space icons; click it to open the drawer.
 - **Chromecasts** (anyone's casts, any app) need the helper on this Mac:
   `bash cast-helper/install.sh` — click Allow if macOS asks about local network devices.
   Remove with `bash cast-helper/uninstall.sh`. Log: `~/Library/Logs/FolderSidebarCast.log`.
+- **Other sites** (Bandcamp, Tidal, anything that plays sound): click **Allow controls on …** on the card.
+  Volume and skip then work on most sites; if a card says so, reload that tab once.
 - **Your Spotify**: click **Connect** and follow the steps (needs Premium and a free Spotify developer app).
+  The Spotify card adds ♥ (Liked Songs), add to playlist, and play one of your playlists.
 
 ## Updating
 Edit the files, then hit the reload arrow on the extension in `chrome://extensions`.
