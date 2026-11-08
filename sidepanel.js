@@ -63,9 +63,16 @@ const FOLDER_SVG = (open) => open
   : '<svg width="16" height="16" viewBox="0 0 16 16"><path d="M1.5 4a1 1 0 0 1 1-1h3.2l1.3 1.5h6.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>';
 
 let toastTimer;
-function toast(msg, ms = 2500) {
+// anchor: show the message just above this element instead of at the top of the sidebar.
+function toast(msg, ms = 2500, anchor = null) {
   const t = $('#toast');
   t.textContent = msg;
+  if (anchor) {
+    t.style.top = 'auto';
+    t.style.bottom = Math.max(8, innerHeight - anchor.getBoundingClientRect().top + 6) + 'px';
+  } else {
+    t.style.top = ''; t.style.bottom = '';
+  }
   t.hidden = false;
   clearTimeout(toastTimer);
   if (ms) toastTimer = setTimeout(() => (t.hidden = true), ms);

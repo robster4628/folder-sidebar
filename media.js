@@ -38,6 +38,13 @@ const Media = (() => {
   const SPOTIFY_EXTRA_SCOPES = 'user-library-read user-library-modify playlist-read-private playlist-read-collaborative playlist-modify-private playlist-modify-public';
   const SPOTIFY_SCOPES = SPOTIFY_BASE_SCOPES + ' ' + SPOTIFY_EXTRA_SCOPES;
 
+  // Media messages appear just above the drawer / mini player rather than at the top.
+  function mtoast(msg, ms = 2500) {
+    const open = $('#mediaDrawer').classList.contains('open');
+    const mini = $('#miniPlayer');
+    const anchor = open ? $('#mediaDrawer') : !mini.hidden ? mini : $('#footer');
+    toast(msg, ms, anchor);
+  }
   const m = {
     open: false,
     tabs: [],          // items from Chrome tabs
@@ -209,13 +216,13 @@ const Media = (() => {
   }
   async function allowSite(origin, host) {
     const ok = await chrome.permissions.request({ origins: [origin] });
-    if (ok) toast(`Controls turned on for ${host}. If skip doesn't work yet, reload that tab once.`, 6000);
+    if (ok) mtoast(`Controls turned on for ${host}. If skip doesn't work yet, reload that tab once.`, 6000);
     refresh(true);
   }
   async function allowSites() {
     const ok = await chrome.permissions.request({ origins: SITE_ORIGINS });
     m.sitesAllowed = ok;
-    if (ok) toast('Music site controls turned on.');
+    if (ok) mtoast('Music site controls turned on.');
     refresh(true);
   }
 
@@ -346,7 +353,7 @@ const Media = (() => {
   }
   function needReconnect() {
     if (hasExtraScopes()) return false;
-    toast('Reconnect Spotify (⋯ → Music Settings → Disconnect, then Connect) to turn on likes and playlists.', 7000);
+    mtoast('Reconnect Spotify (⋯ → Music Settings → Disconnect, then Connect) to turn on likes and playlists.', 7000);
     return true;
   }
   async function checkLiked(uri) {
@@ -369,8 +376,8 @@ const Media = (() => {
       likedCache.set(item.uri, want);
       item.liked = want;
       render();
-      toast(want ? 'Added to Liked Songs' : 'Removed from Liked Songs');
-    } catch (e) { toast(e.message); }
+      mtoast(want ? 'Added to Liked Songs' : 'Removed from Liked Songs');
+    } catch (e) { mtoast(e.message); }
   }
   async function playlists() {
     if (playlistCache && Date.now() - playlistCacheAt < 5 * 60 * 1000) return playlistCache;
@@ -388,18 +395,18 @@ const Media = (() => {
     if (needReconnect() || !item.uri) return;
     try {
       const list = await playlists();
-      if (!list.length) return toast('No playlists found.');
+      if (!list.length) return mtoast('No playlists found.');
       showMenu(x, y, list.map((pl) => ({
         label: pl.name,
         fn: async () => {
           try {
             try { await sp(`/playlists/${pl.id}/items`, 'POST', { uris: [item.uri] }); }
             catch (e) { if (/not found/i.test(e.message)) await sp(`/playlists/${pl.id}/tracks`, 'POST', { uris: [item.uri] }); else throw e; }
-            toast(`Added to ${pl.name}`);
-          } catch (e) { toast(/forbidden|refused/i.test(e.message) ? `You can't add to “${pl.name}” (not yours).` : e.message); }
+            mtoast(`Added to ${pl.name}`);
+          } catch (e) { mtoast(/forbidden|refused/i.test(e.message) ? `You can't add to “${pl.name}” (not yours).` : e.message); }
         },
       })));
-    } catch (e) { toast(e.message); }
+    } catch (e) { mtoast(e.message); }
   }
   async function startPlayback(body) {
     const dev = m.spotify && m.spotify.deviceId;
@@ -428,37 +435,25 @@ const Media = (() => {
       }
       if (!uris.length) throw new Error('Spotify didn\u2019t return your Liked Songs.');
       await startPlayback({ uris });
-      toast(`Playing your ${uris.length} most recent Liked Songs.`);
-    } catch (e) { toast(noDevice(e) ? deviceHint : e.message, 6000); }
-  }
-  async function playRadio(item) {
-    const id = item && item.uri && item.uri.split(':').pop();
-    if (!id) return;
-    try {
-      await startPlayback({ context_uri: `spotify:station:track:${id}` });
-      toast(`Starting radio from “${item.title}”`);
-    } catch (e) {
-      toast(noDevice(e) ? deviceHint : 'Spotify won\u2019t start song radio from outside its own apps. Use “Go to song radio” in Spotify instead.', 7000);
-    }
+      mtoast(`Playing your ${uris.length} most recent Liked Songs.`);
+    } catch (e) { mtoast(noDevice(e) ? deviceHint : e.message, 6000); }
   }
   async function playPlaylistMenu(x, y) {
     if (needReconnect()) return;
     try {
       const list = await playlists();
-      const cur = m.spotify && m.spotify.isTrack ? m.spotify : null;
       showMenu(x, y, [
         { label: '♥ Liked Songs', fn: playLiked },
-        cur ? { label: `📻 Radio from “${cur.title}”`, fn: () => playRadio(cur) } : null,
         list.length ? '-' : null,
         ...list.map((pl) => ({
           label: pl.name,
           fn: async () => {
             try { await startPlayback({ context_uri: pl.uri }); }
-            catch (e) { toast(noDevice(e) || /not found/i.test(e.message) ? deviceHint : e.message, 6000); }
+            catch (e) { mtoast(noDevice(e) || /not found/i.test(e.message) ? deviceHint : e.message, 6000); }
           },
         })),
       ]);
-    } catch (e) { toast(e.message); }
+    } catch (e) { mtoast(e.message); }
   }
 
   async function spotifyAction(item, action, body) {
@@ -471,12 +466,12 @@ const Media = (() => {
   async function spotifyDevicesMenu(item, x, y) {
     try {
       const { devices = [] } = (await sp('/me/player/devices')) || {};
-      if (!devices.length) return toast('No Spotify devices available right now.');
+      if (!devices.length) return mtoast('No Spotify devices available right now.');
       showMenu(x, y, devices.map((d) => ({
         label: (d.is_active ? '✓ ' : ' ') + d.name,
         fn: () => run(item, 'transfer', { deviceId: d.id }),
       })));
-    } catch (e) { toast(e.message); }
+    } catch (e) { mtoast(e.message); }
   }
   async function connectSpotify() {
     const redirect = chrome.identity.getRedirectURL('spotify');
@@ -527,10 +522,10 @@ const Media = (() => {
       m.spotifyAuth = { clientId, access: j.access_token, refresh: j.refresh_token, expires: Date.now() + j.expires_in * 1000, scope: j.scope || '' };
       m.spotifyError = null;
       await saveAuth();
-      toast('Spotify connected.');
+      mtoast('Spotify connected.');
       refresh(true);
     } catch (e) {
-      toast(e.message || String(e), 7000);
+      mtoast(e.message || String(e), 7000);
     }
   }
   async function disconnectSpotify() {
@@ -585,7 +580,7 @@ const Media = (() => {
       if (action === 'mute') item.muted = !item.muted;
       render();
     } catch (e) {
-      toast(e.message || String(e));
+      mtoast(e.message || String(e));
     }
     setTimeout(() => refresh(true), item.kind === 'spotify' ? 700 : 350);
   }
@@ -594,7 +589,7 @@ const Media = (() => {
     if (item.kind === 'tab') return tabAction(item, 'jump');
     const name = item.kind === 'spotify' ? 'Spotify' : item.app || '';
     const hit = APP_SITES.find(([re]) => re.test(name));
-    if (!hit) return toast(`No web app known for ${name || 'this'}.`);
+    if (!hit) return mtoast(`No web app known for ${name || 'this'}.`);
     const host = hit[1];
     const tabs = await chrome.tabs.query({ url: `*://${host}/*` });
     const t = tabs.find((x) => x.windowId === state.windowId) || tabs[0];
