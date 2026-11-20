@@ -1,3 +1,5 @@
+importScripts('tidy.js');
+
 // Clicking the toolbar icon (or Alt+S) toggles the side panel.
 function setup() {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
@@ -46,3 +48,11 @@ chrome.runtime.onInstalled.addListener(syncHooks);
 chrome.runtime.onStartup.addListener(syncHooks);
 chrome.permissions.onAdded.addListener(syncHooks);
 chrome.permissions.onRemoved.addListener(syncHooks);
+
+// Arc-style cleanup: check every 15 minutes.
+async function ensureTidyAlarm() {
+  if (!(await chrome.alarms.get('tidy'))) chrome.alarms.create('tidy', { periodInMinutes: 15, delayInMinutes: 1 });
+}
+chrome.runtime.onInstalled.addListener(ensureTidyAlarm);
+chrome.runtime.onStartup.addListener(ensureTidyAlarm);
+chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'tidy') runTidy().catch((e) => console.warn('tidy failed', e)); });

@@ -242,3 +242,23 @@ body {
 .row.flash { animation: flash 1.2s ease; }
 @keyframes flash { 0%, 40% { background: color-mix(in srgb, var(--accent) 25%, transparent); } 100% { background: transparent; } }
 .modal p.hint { font-size: 12px; opacity: .7; margin-top: -4px; }
+
+/* ---------- tab cleanup ---------- */
+.todayhead { display: flex; align-items: center; gap: 6px; margin: 6px 8px; min-height: 18px; }
+.todayhead .line { flex: 1; height: 1px; background: var(--line); }
+.clearbtn {
+  border: 0; background: none; color: var(--muted); font: inherit; font-size: 11px;
+  padding: 1px 6px; border-radius: 5px; cursor: default; opacity: 0; transition: opacity .15s;
+}
+#scroller:hover .clearbtn { opacity: 1; }
+.clearbtn:hover { background: var(--hover); color: var(--fg); }
+.modal label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; margin: 10px 0 0; }
+.modal select { font: inherit; padding: 5px 6px; border-radius: 6px; border: 1px solid #8884; background: Field; color: FieldText; }
+.modal .box.wide { max-width: 420px; }
+.archlist { max-height: 50vh; overflow-y: auto; margin-top: 8px; display: flex; flex-direction: column; }
+.arow { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 7px; cursor: pointer; }
+.arow:hover { background: #8882; }
+.arow img { width: 16px; height: 16px; flex: none; }
+.arow .meta { min-width: 0; }
+.arow .t { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arow .a { font-size: 11px; opacity: .6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

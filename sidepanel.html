@@ -15,7 +15,7 @@
       <div id="spaceName"></div>
       <div id="tree" class="list"></div>
       <div id="newTab" class="row ghost"><span class="ico plus">+</span><span class="label">New Tab</span></div>
-      <div id="todayDivider" class="divider"></div>
+      <div id="todayDivider" class="todayhead"><span class="line"></span><button id="clearTabs" class="clearbtn" title="Close and archive the open tabs below">Clear</button></div>
       <div id="today" class="list"></div>
       <div id="results" class="list"></div>
     </div>
@@ -37,6 +37,7 @@
   <div id="toast" hidden></div>
   <input id="importFile" type="file" accept=".json,application/json" hidden>
   <script src="import.js"></script>
+  <script src="tidy.js"></script>
   <script src="sidepanel.js"></script>
   <script src="media.js"></script>
 </body>

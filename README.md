@@ -20,6 +20,13 @@ so it syncs with your Google account and survives if you remove the extension.
 - Double-click to rename. Right-click for everything else (new folder, delete, edit URL, space icon/color).
 - Two-finger swipe sideways switches spaces. Search box filters every saved link in every space.
 
+## Tab cleanup (like Arc)
+- Open tabs you haven't looked at for 12 hours close themselves and go to **⋯ → Archived Tabs**
+  (searchable, click to reopen). Saved-link tabs idle that long close too; the link stays in its folder.
+- The tab on screen, tabs playing sound and Chrome-pinned tabs are never closed.
+- Change the timing (or turn it off) in **⋯ → Tab Cleanup…**. **Clear** (hover the line above the
+  open tabs) closes and archives all open tabs in the window at once.
+
 ## Media drawer
 Click ♫ at the bottom (next to the space icons) to open the drawer. Sources are set up in
 **⋯ → Music Settings…**. When something is playing, a mini

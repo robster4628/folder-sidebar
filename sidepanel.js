@@ -83,6 +83,7 @@ function modal(build) {
   return new Promise((resolve) => {
     const m = $('#modal'), box = m.querySelector('.box');
     box.replaceChildren();
+    box.className = 'box';
     const done = (v) => { m.hidden = true; document.removeEventListener('keydown', key, true); resolve(v); };
     const key = (e) => { if (e.key === 'Escape') { e.preventDefault(); done(null); } };
     document.addEventListener('keydown', key, true);
@@ -265,6 +266,7 @@ function render() {
   today.replaceChildren();
   const loose = state.windowTabs.filter((t) => !state.linkedTabIds.has(t.id) && !(t.url || '').startsWith(chrome.runtime.getURL('')));
   for (const t of loose) today.append(tabRow(t));
+  $('#clearTabs').hidden = !loose.length;
   $('#scroller').scrollTop = scroll;
 }
 
@@ -630,6 +632,87 @@ async function restoreColors(file) {
   toast(n ? `Restored colors for ${n} space${n > 1 ? 's' : ''}.` : 'No matching space names found.');
 }
 
+// ---------- tab cleanup (see tidy.js) ----------
+async function clearLooseTabs() {
+  const self = chrome.runtime.getURL('');
+  const loose = state.windowTabs.filter((t) => !state.linkedTabIds.has(t.id) && !(t.url || '').startsWith(self) && !t.pinned);
+  if (!loose.length) return;
+  await archiveTabs(loose);
+  await closeTabsSafely(loose);
+  toast(`Closed ${loose.length} tab${loose.length > 1 ? 's' : ''}. Find them in ⋯ → Archived Tabs.`, 4000);
+}
+const HOUR_CHOICES = [[0, 'Never'], [1, 'After 1 hour'], [12, 'After 12 hours'], [24, 'After 24 hours'], [168, 'After 7 days'], [720, 'After 30 days']];
+async function openTidySettings() {
+  const cur = await tidySettings();
+  const pick = (label, value) => {
+    const wrap = el('label', 'field');
+    wrap.append(el('span', '', label));
+    const sel = el('select');
+    for (const [h, text] of HOUR_CHOICES) { const o = el('option', '', text); o.value = h; if (h === value) o.selected = true; sel.append(o); }
+    wrap.append(sel);
+    return { wrap, sel };
+  };
+  const res = await modal((box, done) => {
+    box.append(el('p', '', 'Tab cleanup'));
+    box.append(el('p', 'hint', 'Like Arc: tabs you haven\u2019t looked at for a while close themselves. The tab on screen, tabs playing sound and Chrome-pinned tabs are never closed.'));
+    const a = pick('Open tabs (not saved): archive', cur.archiveHours);
+    const b = pick('Saved-link tabs: close (link stays)', cur.closeSavedHours);
+    box.append(a.wrap, b.wrap);
+    buttons(box, done, 'Save', 'primary', () => ({ archiveHours: Number(a.sel.value), closeSavedHours: Number(b.sel.value) }));
+  });
+  if (!res) return;
+  await chrome.storage.sync.set({ tidy: res });
+  toast('Tab cleanup saved.');
+}
+function timeAgo(ms) {
+  const m = Math.round((Date.now() - ms) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + ' min ago';
+  const h = Math.round(m / 60);
+  if (h < 24) return h + ' h ago';
+  return Math.round(h / 24) + ' d ago';
+}
+async function openArchive() {
+  const { archive = [] } = await chrome.storage.local.get('archive');
+  await modal((box, done) => {
+    box.classList.add('wide');
+    box.append(el('p', '', `Archived tabs (${archive.length})`));
+    const q = el('input'); q.type = 'text'; q.placeholder = 'Search archived tabs';
+    const list = el('div', 'archlist');
+    const draw = () => {
+      list.replaceChildren();
+      const terms = q.value.toLowerCase().split(/\s+/).filter(Boolean);
+      const items = archive.filter((a) => terms.every((t) => (a.title + ' ' + a.url).toLowerCase().includes(t)));
+      if (!items.length) list.append(el('div', 'empty', archive.length ? 'No matches.' : 'Nothing archived yet.'));
+      for (const a of items.slice(0, 150)) {
+        const r = el('div', 'arow');
+        r.title = a.url;
+        r.append(img(favicon(a.url, a.favIconUrl ? { favIconUrl: a.favIconUrl } : null)));
+        const t = el('div', 'meta');
+        let host = '';
+        try { host = new URL(a.url).hostname.replace(/^www\./, ''); } catch {}
+        t.append(el('div', 't', a.title), el('div', 'a', host + ' · ' + timeAgo(a.closedAt)));
+        r.append(t);
+        r.onclick = async () => {
+          await chrome.tabs.create({ url: a.url, windowId: state.windowId });
+          const { archive: cur = [] } = await chrome.storage.local.get('archive');
+          await chrome.storage.local.set({ archive: cur.filter((x) => !(x.url === a.url && x.closedAt === a.closedAt)) });
+          done(true);
+        };
+        list.append(r);
+      }
+    };
+    q.oninput = draw;
+    draw();
+    box.append(q, list);
+    const b = el('div', 'btns');
+    const clear = el('button', '', 'Empty archive');
+    clear.onclick = async () => { await chrome.storage.local.set({ archive: [] }); done(true); toast('Archive emptied.'); };
+    const ok = el('button', 'primary', 'Done'); ok.onclick = () => done(true);
+    b.append(clear, ok); box.append(b);
+  });
+}
+
 // ---------- drag & drop ----------
 let drag = null;     // {kind, id}
 let dropT = null;    // {el, zone}
@@ -735,6 +818,7 @@ function wire() {
   });
   document.addEventListener('click', (e) => { if (!e.target.closest('#menu')) hideMenu(); }, true);
 
+  $('#clearTabs').addEventListener('click', (e) => { e.stopPropagation(); clearLooseTabs(); });
   $('#newTab').addEventListener('click', () => chrome.tabs.create({ windowId: state.windowId }));
   $('#addSpace').addEventListener('click', async () => {
     const name = await askText('Name for the new space', '');
@@ -749,6 +833,8 @@ function wire() {
     showMenu(r.left, r.top - 8, [
       { label: 'Import from Arc…', fn: () => { importMode = 'all'; $('#importFile').click(); } },
       { label: 'Restore Space Colors from Arc…', fn: () => { importMode = 'colors'; $('#importFile').click(); } },
+      { label: 'Archived Tabs…', fn: openArchive },
+      { label: 'Tab Cleanup…', fn: openTidySettings },
       { label: 'Music Settings…', fn: () => Media.openSettings() },
       '-',
       { label: 'Collapse All Folders', fn: () => { state.expanded.clear(); saveExpanded(); render(); } },
